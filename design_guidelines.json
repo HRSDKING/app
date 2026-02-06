@@ -1,0 +1,164 @@
+{
+  "brand_identity": {
+    "name": "Evangelou & Frantzis Developers",
+    "established": 1971,
+    "location": "Limassol, Cyprus",
+    "archetype": "Jewel & Luxury",
+    "emotional_tone": "Prestigious, Trustworthy, Timeless, Exclusive",
+    "theme_mode": "dark"
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Playfair Display, serif",
+      "weights": ["400", "600", "700"],
+      "usage": "Main titles, hero text, property names",
+      "letter_spacing": "tracking-tight"
+    },
+    "body": {
+      "font_family": "Manrope, sans-serif",
+      "weights": ["300", "400", "500"],
+      "usage": "Paragraphs, UI elements, labels",
+      "letter_spacing": "tracking-wide"
+    },
+    "accents": {
+      "font_family": "Cormorant Garamond, serif",
+      "usage": "Italicized quotes, luxury sub-labels"
+    }
+  },
+  "colors": {
+    "background": {
+      "default": "#0a0a0a",
+      "paper": "#121212",
+      "subtle": "#1a1a1a"
+    },
+    "primary": {
+      "main": "#D4AF37",
+      "light": "#E5C565",
+      "dark": "#A38426",
+      "text_contrast": "#000000"
+    },
+    "text": {
+      "primary": "#EDEDED",
+      "secondary": "#A1A1AA",
+      "muted": "#52525B"
+    },
+    "borders": {
+      "subtle": "rgba(255, 255, 255, 0.1)",
+      "highlight": "rgba(212, 175, 55, 0.3)"
+    },
+    "status": {
+      "success": "#10B981",
+      "error": "#EF4444",
+      "warning": "#F59E0B"
+    }
+  },
+  "visual_enhancers": {
+    "gradients": {
+      "gold_sheen": "linear-gradient(135deg, #D4AF37 0%, #F3E5AB 50%, #A38426 100%)",
+      "dark_fade": "linear-gradient(to bottom, rgba(10,10,10,0) 0%, #0a0a0a 100%)"
+    },
+    "shadows": {
+      "glow": "0 0 20px rgba(212, 175, 55, 0.15)",
+      "card": "0 10px 30px -10px rgba(0, 0, 0, 0.5)"
+    },
+    "borders": {
+      "gold_thin": "1px solid rgba(212, 175, 55, 0.2)"
+    },
+    "textures": {
+      "noise": "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E\")"
+    }
+  },
+  "layout_strategies": {
+    "container_padding": "px-6 md:px-12 lg:px-24",
+    "section_spacing": "py-24 md:py-32",
+    "grid_system": "Bento Grid (Asymmetric)",
+    "max_width": "max-w-7xl mx-auto"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#D4AF37] text-black hover:bg-[#E5C565] rounded-none uppercase tracking-widest font-bold px-8 py-4 transition-all duration-300",
+      "outline": "border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black rounded-none uppercase tracking-widest px-8 py-4 transition-all duration-300",
+      "ghost": "text-[#EDEDED] hover:text-[#D4AF37] transition-colors duration-300"
+    },
+    "cards": {
+      "property": "group relative overflow-hidden bg-[#121212] border border-white/5 hover:border-[#D4AF37]/30 transition-all duration-500",
+      "feature": "bg-[#1a1a1a] p-8 border-l-2 border-[#D4AF37]"
+    },
+    "navigation": {
+      "style": "fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-white/5",
+      "link": "text-sm uppercase tracking-widest hover:text-[#D4AF37] transition-colors"
+    }
+  },
+  "image_urls": {
+    "hero": {
+      "main": "https://images.unsplash.com/photo-1664993118464-f8e4a58f0b15?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "alt": "Luxury Cyprus Skyline Night"
+    },
+    "projects": {
+      "verso": "https://images.unsplash.com/photo-1758116482216-b23a8c04cf12?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "elias": "https://images.unsplash.com/photo-1704383293202-a8c783062a49?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "sotia": "https://images.unsplash.com/photo-1717409677637-49013022077f?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "mamas": "https://images.unsplash.com/photo-18435276/pexels-photo-18435276.jpeg",
+      "vladimiros": "https://images.unsplash.com/photo-27146343/pexels-photo-27146343.jpeg",
+      "meca_twins": "https://images.unsplash.com/photo-1664993118464-f8e4a58f0b15?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "q_residence": "https://images.unsplash.com/photo-1758116482216-b23a8c04cf12?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "costa": "https://images.unsplash.com/photo-1704383293202-a8c783062a49?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "vasiliki": "https://images.unsplash.com/photo-1717409677637-49013022077f?crop=entropy&cs=srgb&fm=jpg&q=85"
+    },
+    "interiors": [
+      "https://images.unsplash.com/photo-1601002257790-ebe0966a85ae?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1644057501622-dfa7dd26dbfb?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1653652445848-ddc5a1c6472c?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ],
+    "location": [
+      "https://images.unsplash.com/photo-1664993118464-f8e4a58f0b15?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1649503411891-26ff44a3d6cf?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ],
+    "about": [
+      "https://images.unsplash.com/photo-1631171992385-784ae02b1acb?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1644657711115-ee46e8dd7c7d?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ]
+  },
+  "motion": {
+    "libraries": ["framer-motion", "lenis"],
+    "transitions": {
+      "default": "all 0.5s cubic-bezier(0.22, 1, 0.36, 1)",
+      "slow": "all 1.2s cubic-bezier(0.22, 1, 0.36, 1)"
+    },
+    "scroll": "Smooth scrolling with Lenis is MANDATORY for luxury feel"
+  },
+  "accessibility": {
+    "contrast_check": "Ensure Gold text on Black meets 4.5:1. Use lighter gold (#E5C565) for small text.",
+    "testing": "All interactive elements must have data-testid attributes."
+  },
+  "instructions_to_main_agent": [
+    "1. SETUP: Install 'framer-motion', 'lenis', 'lucide-react', 'clsx', 'tailwind-merge' if missing.",
+    "2. THEME: Override tailwind.config.js colors with the provided Gold/Black palette. Set 'darkMode' to 'class' but force dark mode by default in index.css.",
+    "3. FONTS: Import 'Playfair Display' and 'Manrope' from Google Fonts in index.css.",
+    "4. COMPONENTS: Build a 'PropertyCard' component that uses the 'Tracing Beam' effect for 'New Launch' items.",
+    "5. PAGES: Create 'Home', 'Projects', 'NewLaunches', 'PropertyDetail', 'About', 'Contact'.",
+    "6. DATA: Create a mock data file 'projects.js' with the specific project names (Verso, Elias, etc.) and map the provided image URLs to them.",
+    "7. NAV: Ensure the navbar is sticky, glassmorphic (bg-black/80), and has a gold bottom border on scroll.",
+    "8. HERO: Use a full-screen layout with the 'Luxury Cyprus Skyline' image, a dark overlay (bg-black/50), and large Playfair Display text.",
+    "9. AMENITIES: On Property Detail, show distances to amenities using a clean list with icons (School, Hospital, Beach).",
+    "10. TESTING: Add data-testid to all buttons, inputs, and links."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: 'transition: all'. This results in breaking transforms.",
+    "You MUST NOT center align the app container.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations.",
+    "NEVER use AI assistant Emoji characters.",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories = main agent will use placeholder text which is FORBIDDEN.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Components MUST use named exports.",
+    "Pages MUST use default exports.",
+    "Use 'sonner' for toasts."
+  ]
+}
