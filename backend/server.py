@@ -5,7 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
@@ -53,7 +53,7 @@ class Property(BaseModel):
     price_from: int
     price_to: int
     currency: str = "EUR"
-    status: str  # available, sold_out, coming_soon
+    status: str
     is_new_launch: bool = False
     launch_date: Optional[str] = None
     completion_date: Optional[str] = None
@@ -85,8 +85,78 @@ class ContactFormCreate(BaseModel):
     property_interest: Optional[str] = None
     message: str
 
-# Sample Properties Data
+class MortgageCalculation(BaseModel):
+    property_price: float
+    down_payment_percent: float
+    interest_rate: float
+    loan_term_years: int
+
+class MortgageResult(BaseModel):
+    loan_amount: float
+    monthly_payment: float
+    total_payment: float
+    total_interest: float
+    down_payment: float
+
+# Cyprus Bank Rates (Updated Dec 2025)
+CYPRUS_MORTGAGE_RATES = [
+    {"bank": "Bank of Cyprus", "rate": 3.64, "min_down_payment": 20, "max_term": 30},
+    {"bank": "Hellenic Bank", "rate": 3.75, "min_down_payment": 15, "max_term": 30},
+    {"bank": "Alpha Bank Cyprus", "rate": 3.55, "min_down_payment": 20, "max_term": 25},
+    {"bank": "Eurobank Cyprus", "rate": 3.80, "min_down_payment": 25, "max_term": 25},
+    {"bank": "RCB Bank", "rate": 3.90, "min_down_payment": 20, "max_term": 20},
+]
+
+# Sample Properties Data with actual Cyprus-style images
 SAMPLE_PROPERTIES = [
+    {
+        "id": "duet-residency",
+        "name": "DUET Residency",
+        "slug": "duet-residency",
+        "location": "Kato Polemidia, Limassol",
+        "address": "15 Harmony Avenue, Kato Polemidia",
+        "description": "DUET Residency is our latest flagship development featuring twin luxury towers with stunning architectural design. Premium 2 & 3 bedroom apartments with panoramic city and sea views, smart home technology, and exclusive amenities including infinity pool and rooftop garden.",
+        "price_from": 245000,
+        "price_to": 520000,
+        "currency": "EUR",
+        "status": "coming_soon",
+        "is_new_launch": True,
+        "launch_date": "2026-03-15",
+        "completion_date": "2028-06-30",
+        "features": {
+            "bedrooms": 3,
+            "bathrooms": 2,
+            "area": 145,
+            "parking": 2,
+            "floor": "1-12",
+            "energy_rating": "A+"
+        },
+        "amenities": [
+            {"name": "Limassol General Hospital", "distance": "1.5 km", "icon": "hospital", "category": "essential"},
+            {"name": "TEPAK University", "distance": "2.8 km", "icon": "school", "category": "essential"},
+            {"name": "Alphamega Supermarket", "distance": "0.4 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Bus Station", "distance": "0.2 km", "icon": "bus", "category": "essential"},
+            {"name": "Dasoudi Beach", "distance": "4.2 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "MyMall Limassol", "distance": "2.5 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Municipal Park", "distance": "1.2 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Fitness First Gym", "distance": "0.6 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Taverna Olympus", "distance": "0.3 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1730646342796-51c1b5627d9d?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1655019545925-ddad6147d575?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1704741751068-c40d8ccf868c?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/duet-floorplan.pdf",
+        "virtual_tour_url": "https://my.matterport.com/show/?m=duet",
+        "video_url": "https://www.youtube.com/embed/duet",
+        "financing_options": [
+            {"bank": "Bank of Cyprus", "rate": "3.64%", "term": "30 years", "down_payment": "20%"},
+            {"bank": "Hellenic Bank", "rate": "3.75%", "term": "30 years", "down_payment": "15%"},
+            {"bank": "Alpha Bank Cyprus", "rate": "3.55%", "term": "25 years", "down_payment": "20%"}
+        ],
+        "highlights": ["Twin Towers Design", "Infinity Pool", "Smart Home", "Rooftop Garden", "Sea Views"]
+    },
     {
         "id": "verso-residence",
         "name": "Verso Residence",
@@ -121,15 +191,15 @@ SAMPLE_PROPERTIES = [
             {"name": "Taverna Olympus", "distance": "0.4 km", "icon": "utensils", "category": "lifestyle"}
         ],
         "images": [
-            "https://images.unsplash.com/photo-1758116482216-b23a8c04cf12?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1601002257790-ebe0966a85ae?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1644057501622-dfa7dd26dbfb?crop=entropy&cs=srgb&fm=jpg&q=85"
+            "https://images.unsplash.com/photo-1762449826563-5373ef0f3568?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1763980014986-e1eef48b4e4d?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1703091854773-23fb8dd50173?crop=entropy&cs=srgb&fm=jpg&q=85"
         ],
         "floor_plan_url": "https://example.com/verso-floorplan.pdf",
         "virtual_tour_url": "https://my.matterport.com/show/?m=example",
         "video_url": "https://www.youtube.com/embed/example",
         "financing_options": [
-            {"bank": "Bank of Cyprus", "rate": "3.5%", "term": "25 years", "down_payment": "20%"},
+            {"bank": "Bank of Cyprus", "rate": "3.64%", "term": "25 years", "down_payment": "20%"},
             {"bank": "Hellenic Bank", "rate": "3.75%", "term": "30 years", "down_payment": "15%"}
         ],
         "highlights": ["Sea Views", "Smart Home", "Private Garden", "Underground Parking"]
@@ -168,16 +238,16 @@ SAMPLE_PROPERTIES = [
             {"name": "La Maison Fleur", "distance": "0.6 km", "icon": "utensils", "category": "lifestyle"}
         ],
         "images": [
-            "https://images.unsplash.com/photo-1704383293202-a8c783062a49?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1653652445848-ddc5a1c6472c?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1631171992385-784ae02b1acb?crop=entropy&cs=srgb&fm=jpg&q=85"
+            "https://images.unsplash.com/photo-1761386017822-0d9d41fd5725?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1755865871764-d70a62cd0a67?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1622632984392-bfc18e38a38d?crop=entropy&cs=srgb&fm=jpg&q=85"
         ],
         "floor_plan_url": "https://example.com/elias-floorplan.pdf",
         "virtual_tour_url": "https://my.matterport.com/show/?m=example2",
         "video_url": None,
         "financing_options": [
-            {"bank": "Bank of Cyprus", "rate": "3.5%", "term": "25 years", "down_payment": "20%"},
-            {"bank": "Alpha Bank", "rate": "3.6%", "term": "20 years", "down_payment": "25%"}
+            {"bank": "Bank of Cyprus", "rate": "3.64%", "term": "25 years", "down_payment": "20%"},
+            {"bank": "Alpha Bank", "rate": "3.55%", "term": "20 years", "down_payment": "25%"}
         ],
         "highlights": ["Rooftop Garden", "Premium Finishes", "Spacious Balconies", "24/7 Security"]
     },
@@ -215,9 +285,9 @@ SAMPLE_PROPERTIES = [
             {"name": "Ocean Basket", "distance": "0.8 km", "icon": "utensils", "category": "lifestyle"}
         ],
         "images": [
-            "https://images.unsplash.com/photo-1717409677637-49013022077f?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1644657711115-ee46e8dd7c7d?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1649503411891-26ff44a3d6cf?crop=entropy&cs=srgb&fm=jpg&q=85"
+            "https://images.unsplash.com/photo-1622632983007-d5fd73d2d169?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1645683971142-7716faf55ca6?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1623857792265-cc4d16c0ebd8?crop=entropy&cs=srgb&fm=jpg&q=85"
         ],
         "floor_plan_url": "https://example.com/sotia-floorplan.pdf",
         "virtual_tour_url": None,
@@ -269,8 +339,8 @@ SAMPLE_PROPERTIES = [
         "virtual_tour_url": "https://my.matterport.com/show/?m=mamas",
         "video_url": "https://www.youtube.com/embed/mamas",
         "financing_options": [
-            {"bank": "Bank of Cyprus", "rate": "3.25%", "term": "25 years", "down_payment": "30%"},
-            {"bank": "Eurobank Cyprus", "rate": "3.4%", "term": "20 years", "down_payment": "25%"}
+            {"bank": "Bank of Cyprus", "rate": "3.64%", "term": "25 years", "down_payment": "30%"},
+            {"bank": "Eurobank Cyprus", "rate": "3.80%", "term": "20 years", "down_payment": "25%"}
         ],
         "highlights": ["Gated Community", "Private Pool", "Mountain Views", "Landscaped Gardens"]
     },
@@ -308,16 +378,16 @@ SAMPLE_PROPERTIES = [
             {"name": "Pier One Restaurant", "distance": "0.2 km", "icon": "utensils", "category": "lifestyle"}
         ],
         "images": [
-            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1613977257363-707ba9348227?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?crop=entropy&cs=srgb&fm=jpg&q=85"
+            "https://images.unsplash.com/photo-1570605544454-42578ceab106?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1760163287866-ab68025b4c96?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1664993118544-72b2531c8157?crop=entropy&cs=srgb&fm=jpg&q=85"
         ],
         "floor_plan_url": "https://example.com/vladimiros-floorplan.pdf",
         "virtual_tour_url": "https://my.matterport.com/show/?m=vlad",
         "video_url": "https://www.youtube.com/embed/vlad",
         "financing_options": [
-            {"bank": "Bank of Cyprus", "rate": "3.5%", "term": "25 years", "down_payment": "20%"},
-            {"bank": "RCB Bank", "rate": "3.65%", "term": "30 years", "down_payment": "15%"}
+            {"bank": "Bank of Cyprus", "rate": "3.64%", "term": "25 years", "down_payment": "20%"},
+            {"bank": "RCB Bank", "rate": "3.90%", "term": "30 years", "down_payment": "15%"}
         ],
         "highlights": ["Waterfront Location", "Marina Access", "Sea Views", "Premium Finishes"]
     },
@@ -331,10 +401,10 @@ SAMPLE_PROPERTIES = [
         "price_from": 380000,
         "price_to": 1200000,
         "currency": "EUR",
-        "status": "coming_soon",
-        "is_new_launch": True,
-        "launch_date": "2026-06-01",
-        "completion_date": "2029-12-01",
+        "status": "available",
+        "is_new_launch": False,
+        "launch_date": None,
+        "completion_date": "2027-12-01",
         "features": {
             "bedrooms": 4,
             "bathrooms": 3,
@@ -363,8 +433,8 @@ SAMPLE_PROPERTIES = [
         "virtual_tour_url": None,
         "video_url": "https://www.youtube.com/embed/meca",
         "financing_options": [
-            {"bank": "Bank of Cyprus", "rate": "3.2%", "term": "30 years", "down_payment": "25%"},
-            {"bank": "Hellenic Bank", "rate": "3.4%", "term": "25 years", "down_payment": "20%"}
+            {"bank": "Bank of Cyprus", "rate": "3.64%", "term": "30 years", "down_payment": "25%"},
+            {"bank": "Hellenic Bank", "rate": "3.75%", "term": "25 years", "down_payment": "20%"}
         ],
         "highlights": ["Twin Towers", "Penthouse Living", "360° Views", "Infinity Pool"]
     },
@@ -402,9 +472,9 @@ SAMPLE_PROPERTIES = [
             {"name": "Nando's", "distance": "1.0 km", "icon": "utensils", "category": "lifestyle"}
         ],
         "images": [
-            "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1600573472592-401b489a3cdc?crop=entropy&cs=srgb&fm=jpg&q=85",
-            "https://images.unsplash.com/photo-1600585154526-990dced4db0d?crop=entropy&cs=srgb&fm=jpg&q=85"
+            "https://images.unsplash.com/photo-1664993118464-f8e4a58f0b15?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1758116482216-b23a8c04cf12?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1611067523416-679acc413e30?crop=entropy&cs=srgb&fm=jpg&q=85"
         ],
         "floor_plan_url": "https://example.com/q-floorplan.pdf",
         "virtual_tour_url": "https://my.matterport.com/show/?m=qres",
@@ -456,8 +526,8 @@ SAMPLE_PROPERTIES = [
         "virtual_tour_url": "https://my.matterport.com/show/?m=costa",
         "video_url": "https://www.youtube.com/embed/costa",
         "financing_options": [
-            {"bank": "Bank of Cyprus", "rate": "3.5%", "term": "25 years", "down_payment": "20%"},
-            {"bank": "Hellenic Bank", "rate": "3.6%", "term": "30 years", "down_payment": "15%"}
+            {"bank": "Bank of Cyprus", "rate": "3.64%", "term": "25 years", "down_payment": "20%"},
+            {"bank": "Hellenic Bank", "rate": "3.75%", "term": "30 years", "down_payment": "15%"}
         ],
         "highlights": ["Beach Access", "Resort Amenities", "Heated Pool", "Sea Views"]
     },
@@ -603,6 +673,56 @@ async def get_company_info():
             "years_experience": 54
         }
     }
+
+@api_router.get("/mortgage/rates")
+async def get_mortgage_rates():
+    """Get current Cyprus mortgage rates from major banks"""
+    return {
+        "rates": CYPRUS_MORTGAGE_RATES,
+        "last_updated": "December 2025",
+        "average_rate": 3.64,
+        "note": "Rates are indicative and subject to individual eligibility and market conditions"
+    }
+
+@api_router.post("/mortgage/calculate", response_model=MortgageResult)
+async def calculate_mortgage(calc: MortgageCalculation):
+    """Calculate mortgage monthly payments"""
+    # Validate inputs
+    if calc.property_price <= 0:
+        raise HTTPException(status_code=400, detail="Property price must be positive")
+    if calc.down_payment_percent < 0 or calc.down_payment_percent > 100:
+        raise HTTPException(status_code=400, detail="Down payment must be between 0 and 100%")
+    if calc.interest_rate <= 0 or calc.interest_rate > 20:
+        raise HTTPException(status_code=400, detail="Interest rate must be between 0 and 20%")
+    if calc.loan_term_years <= 0 or calc.loan_term_years > 40:
+        raise HTTPException(status_code=400, detail="Loan term must be between 1 and 40 years")
+    
+    # Calculate
+    down_payment = calc.property_price * (calc.down_payment_percent / 100)
+    loan_amount = calc.property_price - down_payment
+    
+    # Monthly interest rate
+    monthly_rate = (calc.interest_rate / 100) / 12
+    
+    # Total number of payments
+    num_payments = calc.loan_term_years * 12
+    
+    # Monthly payment formula: M = P * [r(1+r)^n] / [(1+r)^n - 1]
+    if monthly_rate > 0:
+        monthly_payment = loan_amount * (monthly_rate * pow(1 + monthly_rate, num_payments)) / (pow(1 + monthly_rate, num_payments) - 1)
+    else:
+        monthly_payment = loan_amount / num_payments
+    
+    total_payment = monthly_payment * num_payments
+    total_interest = total_payment - loan_amount
+    
+    return MortgageResult(
+        loan_amount=round(loan_amount, 2),
+        monthly_payment=round(monthly_payment, 2),
+        total_payment=round(total_payment, 2),
+        total_interest=round(total_interest, 2),
+        down_payment=round(down_payment, 2)
+    )
 
 # Include the router in the main app
 app.include_router(api_router)
