@@ -1,70 +1,608 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Models
+class Amenity(BaseModel):
+    name: str
+    distance: str
+    icon: str
+    category: str
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
+class PropertyFeature(BaseModel):
+    bedrooms: int
+    bathrooms: int
+    area: int
+    parking: int
+    floor: str
+    energy_rating: str
+
+class FinancingOption(BaseModel):
+    bank: str
+    rate: str
+    term: str
+    down_payment: str
+
+class Property(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    name: str
+    slug: str
+    location: str
+    address: str
+    description: str
+    price_from: int
+    price_to: int
+    currency: str = "EUR"
+    status: str  # available, sold_out, coming_soon
+    is_new_launch: bool = False
+    launch_date: Optional[str] = None
+    completion_date: Optional[str] = None
+    features: PropertyFeature
+    amenities: List[Amenity]
+    images: List[str]
+    floor_plan_url: Optional[str] = None
+    virtual_tour_url: Optional[str] = None
+    video_url: Optional[str] = None
+    financing_options: List[FinancingOption]
+    highlights: List[str]
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class ContactForm(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: str
+    phone: Optional[str] = None
+    property_interest: Optional[str] = None
+    message: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-# Add your routes to the router instead of directly to app
+class ContactFormCreate(BaseModel):
+    name: str
+    email: str
+    phone: Optional[str] = None
+    property_interest: Optional[str] = None
+    message: str
+
+# Sample Properties Data
+SAMPLE_PROPERTIES = [
+    {
+        "id": "verso-residence",
+        "name": "Verso Residence",
+        "slug": "verso-residence",
+        "location": "Kato Polemidia, Limassol",
+        "address": "25 Makarios Avenue, Kato Polemidia",
+        "description": "A stunning contemporary development featuring premium 2 & 3 bedroom apartments with panoramic city views. Verso Residence represents the pinnacle of modern living in Limassol, combining sophisticated design with unparalleled comfort.",
+        "price_from": 195000,
+        "price_to": 385000,
+        "currency": "EUR",
+        "status": "available",
+        "is_new_launch": True,
+        "launch_date": "2025-12-15",
+        "completion_date": "2027-06-30",
+        "features": {
+            "bedrooms": 3,
+            "bathrooms": 2,
+            "area": 125,
+            "parking": 2,
+            "floor": "1-8",
+            "energy_rating": "A"
+        },
+        "amenities": [
+            {"name": "Limassol General Hospital", "distance": "1.2 km", "icon": "hospital", "category": "essential"},
+            {"name": "TEPAK University", "distance": "2.5 km", "icon": "school", "category": "essential"},
+            {"name": "Alphamega Supermarket", "distance": "0.5 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Bus Station", "distance": "0.3 km", "icon": "bus", "category": "essential"},
+            {"name": "Dasoudi Beach", "distance": "3.8 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "MyMall Limassol", "distance": "2.1 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Municipal Park", "distance": "1.5 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Fitness First Gym", "distance": "0.8 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Taverna Olympus", "distance": "0.4 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1758116482216-b23a8c04cf12?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1601002257790-ebe0966a85ae?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1644057501622-dfa7dd26dbfb?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/verso-floorplan.pdf",
+        "virtual_tour_url": "https://my.matterport.com/show/?m=example",
+        "video_url": "https://www.youtube.com/embed/example",
+        "financing_options": [
+            {"bank": "Bank of Cyprus", "rate": "3.5%", "term": "25 years", "down_payment": "20%"},
+            {"bank": "Hellenic Bank", "rate": "3.75%", "term": "30 years", "down_payment": "15%"}
+        ],
+        "highlights": ["Sea Views", "Smart Home", "Private Garden", "Underground Parking"]
+    },
+    {
+        "id": "elias-residence",
+        "name": "Elias Residence",
+        "slug": "elias-residence",
+        "location": "Agios Athanasios, Limassol",
+        "address": "12 Elias Street, Agios Athanasios",
+        "description": "Elias Residence offers sophisticated living spaces designed for discerning buyers. Each apartment features premium finishes, spacious balconies, and access to exclusive communal amenities including a rooftop garden.",
+        "price_from": 245000,
+        "price_to": 420000,
+        "currency": "EUR",
+        "status": "available",
+        "is_new_launch": True,
+        "launch_date": "2026-01-20",
+        "completion_date": "2027-09-15",
+        "features": {
+            "bedrooms": 3,
+            "bathrooms": 2,
+            "area": 140,
+            "parking": 2,
+            "floor": "1-6",
+            "energy_rating": "A+"
+        },
+        "amenities": [
+            {"name": "American Medical Center", "distance": "1.8 km", "icon": "hospital", "category": "essential"},
+            {"name": "Grammar School", "distance": "1.2 km", "icon": "school", "category": "essential"},
+            {"name": "Carrefour", "distance": "0.7 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Metro Station", "distance": "0.5 km", "icon": "train", "category": "essential"},
+            {"name": "Ladies Mile Beach", "distance": "2.5 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "Kings Avenue Mall", "distance": "1.8 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Botanical Gardens", "distance": "2.0 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "CrossFit Limassol", "distance": "1.0 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "La Maison Fleur", "distance": "0.6 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1704383293202-a8c783062a49?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1653652445848-ddc5a1c6472c?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1631171992385-784ae02b1acb?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/elias-floorplan.pdf",
+        "virtual_tour_url": "https://my.matterport.com/show/?m=example2",
+        "video_url": None,
+        "financing_options": [
+            {"bank": "Bank of Cyprus", "rate": "3.5%", "term": "25 years", "down_payment": "20%"},
+            {"bank": "Alpha Bank", "rate": "3.6%", "term": "20 years", "down_payment": "25%"}
+        ],
+        "highlights": ["Rooftop Garden", "Premium Finishes", "Spacious Balconies", "24/7 Security"]
+    },
+    {
+        "id": "sotia-residence",
+        "name": "Sotia Residence",
+        "slug": "sotia-residence",
+        "location": "Mesa Geitonia, Limassol",
+        "address": "8 Sotia Avenue, Mesa Geitonia",
+        "description": "An exclusive boutique development of only 12 apartments, Sotia Residence offers intimate luxury living. Perfect for families seeking tranquility without compromising on accessibility to urban amenities.",
+        "price_from": 175000,
+        "price_to": 295000,
+        "currency": "EUR",
+        "status": "available",
+        "is_new_launch": False,
+        "launch_date": None,
+        "completion_date": "2026-03-01",
+        "features": {
+            "bedrooms": 2,
+            "bathrooms": 1,
+            "area": 95,
+            "parking": 1,
+            "floor": "1-4",
+            "energy_rating": "A"
+        },
+        "amenities": [
+            {"name": "Ygia Polyclinic", "distance": "2.0 km", "icon": "hospital", "category": "essential"},
+            {"name": "Pascal English School", "distance": "1.5 km", "icon": "school", "category": "essential"},
+            {"name": "Lidl", "distance": "0.4 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Bus Stop", "distance": "0.2 km", "icon": "bus", "category": "essential"},
+            {"name": "Governor's Beach", "distance": "8.5 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "The Mall of Cyprus", "distance": "45 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Limassol Zoo", "distance": "3.5 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Gold's Gym", "distance": "1.2 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Ocean Basket", "distance": "0.8 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1717409677637-49013022077f?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1644657711115-ee46e8dd7c7d?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1649503411891-26ff44a3d6cf?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/sotia-floorplan.pdf",
+        "virtual_tour_url": None,
+        "video_url": None,
+        "financing_options": [
+            {"bank": "Hellenic Bank", "rate": "3.75%", "term": "30 years", "down_payment": "15%"}
+        ],
+        "highlights": ["Boutique Development", "Family Friendly", "Quiet Neighborhood", "Near Schools"]
+    },
+    {
+        "id": "mamas-eagle-gardens",
+        "name": "Mamas Eagle Gardens",
+        "slug": "mamas-eagle-gardens",
+        "location": "Germasogeia, Limassol",
+        "address": "45 Eagle Drive, Germasogeia",
+        "description": "Mamas Eagle Gardens is a prestigious gated community featuring luxurious villas and maisonettes. Set amidst landscaped gardens with stunning mountain views, this development offers the ultimate in privacy and comfort.",
+        "price_from": 450000,
+        "price_to": 850000,
+        "currency": "EUR",
+        "status": "available",
+        "is_new_launch": False,
+        "launch_date": None,
+        "completion_date": "2025-12-01",
+        "features": {
+            "bedrooms": 4,
+            "bathrooms": 3,
+            "area": 220,
+            "parking": 2,
+            "floor": "G+1",
+            "energy_rating": "A+"
+        },
+        "amenities": [
+            {"name": "Mediterranean Hospital", "distance": "3.5 km", "icon": "hospital", "category": "essential"},
+            {"name": "Heritage Private School", "distance": "2.0 km", "icon": "school", "category": "essential"},
+            {"name": "Sklavenitis", "distance": "1.2 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Bus Terminal", "distance": "1.5 km", "icon": "bus", "category": "essential"},
+            {"name": "Germasogeia Beach", "distance": "4.0 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "Makariou Shopping District", "distance": "2.8 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Germasogeia Dam", "distance": "1.0 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Lifestyle Fitness", "distance": "2.2 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Karatello Italian", "distance": "1.8 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/mamas-floorplan.pdf",
+        "virtual_tour_url": "https://my.matterport.com/show/?m=mamas",
+        "video_url": "https://www.youtube.com/embed/mamas",
+        "financing_options": [
+            {"bank": "Bank of Cyprus", "rate": "3.25%", "term": "25 years", "down_payment": "30%"},
+            {"bank": "Eurobank Cyprus", "rate": "3.4%", "term": "20 years", "down_payment": "25%"}
+        ],
+        "highlights": ["Gated Community", "Private Pool", "Mountain Views", "Landscaped Gardens"]
+    },
+    {
+        "id": "vladimiros-residence",
+        "name": "Vladimiros Residence",
+        "slug": "vladimiros-residence",
+        "location": "Zakaki, Limassol",
+        "address": "18 Marina Boulevard, Zakaki",
+        "description": "Located near the new Limassol Marina, Vladimiros Residence offers contemporary waterfront living. These exclusive apartments feature premium marine-grade finishes and direct access to the promenade.",
+        "price_from": 320000,
+        "price_to": 580000,
+        "currency": "EUR",
+        "status": "available",
+        "is_new_launch": True,
+        "launch_date": "2026-02-01",
+        "completion_date": "2028-01-15",
+        "features": {
+            "bedrooms": 3,
+            "bathrooms": 2,
+            "area": 150,
+            "parking": 2,
+            "floor": "1-10",
+            "energy_rating": "A+"
+        },
+        "amenities": [
+            {"name": "Apollonion Hospital", "distance": "2.8 km", "icon": "hospital", "category": "essential"},
+            {"name": "Foley's Grammar School", "distance": "3.0 km", "icon": "school", "category": "essential"},
+            {"name": "Metro Supermarket", "distance": "0.8 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Marina Bus Stop", "distance": "0.1 km", "icon": "bus", "category": "essential"},
+            {"name": "Limassol Marina Beach", "distance": "0.3 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "Marina Shops", "distance": "0.2 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Molos Promenade", "distance": "0.5 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Marina Fitness Club", "distance": "0.4 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Pier One Restaurant", "distance": "0.2 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1613977257363-707ba9348227?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/vladimiros-floorplan.pdf",
+        "virtual_tour_url": "https://my.matterport.com/show/?m=vlad",
+        "video_url": "https://www.youtube.com/embed/vlad",
+        "financing_options": [
+            {"bank": "Bank of Cyprus", "rate": "3.5%", "term": "25 years", "down_payment": "20%"},
+            {"bank": "RCB Bank", "rate": "3.65%", "term": "30 years", "down_payment": "15%"}
+        ],
+        "highlights": ["Waterfront Location", "Marina Access", "Sea Views", "Premium Finishes"]
+    },
+    {
+        "id": "meca-twins",
+        "name": "Meca Twins",
+        "slug": "meca-twins",
+        "location": "Agios Nikolaos, Limassol",
+        "address": "22 Twin Towers Avenue, Agios Nikolaos",
+        "description": "An iconic twin-tower development that redefines the Limassol skyline. Meca Twins offers luxurious penthouse living with panoramic 360-degree views of the Mediterranean Sea and Troodos Mountains.",
+        "price_from": 380000,
+        "price_to": 1200000,
+        "currency": "EUR",
+        "status": "coming_soon",
+        "is_new_launch": True,
+        "launch_date": "2026-06-01",
+        "completion_date": "2029-12-01",
+        "features": {
+            "bedrooms": 4,
+            "bathrooms": 3,
+            "area": 200,
+            "parking": 3,
+            "floor": "1-25",
+            "energy_rating": "A+"
+        },
+        "amenities": [
+            {"name": "German Oncology Center", "distance": "4.0 km", "icon": "hospital", "category": "essential"},
+            {"name": "International School", "distance": "2.5 km", "icon": "school", "category": "essential"},
+            {"name": "Papantoniou", "distance": "1.0 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Central Bus Station", "distance": "0.8 km", "icon": "bus", "category": "essential"},
+            {"name": "Akti Olympion Beach", "distance": "1.5 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "Anexartisias Shopping", "distance": "1.2 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Municipal Gardens", "distance": "0.6 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Equilibrium Gym", "distance": "0.9 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Columbia Steak House", "distance": "0.7 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1567684014761-b65e2e59b9eb?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/meca-floorplan.pdf",
+        "virtual_tour_url": None,
+        "video_url": "https://www.youtube.com/embed/meca",
+        "financing_options": [
+            {"bank": "Bank of Cyprus", "rate": "3.2%", "term": "30 years", "down_payment": "25%"},
+            {"bank": "Hellenic Bank", "rate": "3.4%", "term": "25 years", "down_payment": "20%"}
+        ],
+        "highlights": ["Twin Towers", "Penthouse Living", "360° Views", "Infinity Pool"]
+    },
+    {
+        "id": "q-residence",
+        "name": "Q Residence",
+        "slug": "q-residence",
+        "location": "Potamos Germasogeia, Limassol",
+        "address": "5 Quality Lane, Potamos Germasogeia",
+        "description": "Q Residence sets a new standard for quality living in Limassol. This boutique development features smart home technology, sustainable design, and meticulously crafted interiors for the modern professional.",
+        "price_from": 215000,
+        "price_to": 345000,
+        "currency": "EUR",
+        "status": "available",
+        "is_new_launch": False,
+        "launch_date": None,
+        "completion_date": "2026-06-01",
+        "features": {
+            "bedrooms": 2,
+            "bathrooms": 2,
+            "area": 105,
+            "parking": 1,
+            "floor": "1-5",
+            "energy_rating": "A+"
+        },
+        "amenities": [
+            {"name": "Aretaeio Hospital", "distance": "3.2 km", "icon": "hospital", "category": "essential"},
+            {"name": "American Academy", "distance": "1.8 km", "icon": "school", "category": "essential"},
+            {"name": "AB Vasilopoulos", "distance": "0.6 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Bus Route 30", "distance": "0.3 km", "icon": "bus", "category": "essential"},
+            {"name": "Curium Beach", "distance": "12 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "IKEA Limassol", "distance": "5.0 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Fasouri Watermania", "distance": "8.0 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Planet Fitness", "distance": "1.5 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Nando's", "distance": "1.0 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600573472592-401b489a3cdc?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600585154526-990dced4db0d?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/q-floorplan.pdf",
+        "virtual_tour_url": "https://my.matterport.com/show/?m=qres",
+        "video_url": None,
+        "financing_options": [
+            {"bank": "Alpha Bank", "rate": "3.55%", "term": "25 years", "down_payment": "20%"}
+        ],
+        "highlights": ["Smart Home", "Sustainable Design", "Modern Interiors", "Energy Efficient"]
+    },
+    {
+        "id": "costa-residence",
+        "name": "Costa Residence",
+        "slug": "costa-residence",
+        "location": "Yermasoyia Tourist Area, Limassol",
+        "address": "88 Coastal Road, Yermasoyia",
+        "description": "Costa Residence brings coastal luxury living to Limassol's premier tourist district. Wake up to Mediterranean sunrises and enjoy resort-style amenities including a heated pool and private beach access.",
+        "price_from": 285000,
+        "price_to": 520000,
+        "currency": "EUR",
+        "status": "available",
+        "is_new_launch": False,
+        "launch_date": None,
+        "completion_date": "2026-09-01",
+        "features": {
+            "bedrooms": 3,
+            "bathrooms": 2,
+            "area": 135,
+            "parking": 2,
+            "floor": "1-8",
+            "energy_rating": "A"
+        },
+        "amenities": [
+            {"name": "St. Raphael Medical", "distance": "1.5 km", "icon": "hospital", "category": "essential"},
+            {"name": "Silverline School", "distance": "2.2 km", "icon": "school", "category": "essential"},
+            {"name": "Debenhams Food Hall", "distance": "0.9 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "Tourist Area Bus", "distance": "0.1 km", "icon": "bus", "category": "essential"},
+            {"name": "Yermasoyia Beach", "distance": "0.2 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "Four Seasons Mall", "distance": "1.0 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Seafront Promenade", "distance": "0.1 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Hilton Gym & Spa", "distance": "0.5 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Sala Beach Bar", "distance": "0.3 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1615571022219-eb45cf7faa9d?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600607687644-c7171b42498f?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/costa-floorplan.pdf",
+        "virtual_tour_url": "https://my.matterport.com/show/?m=costa",
+        "video_url": "https://www.youtube.com/embed/costa",
+        "financing_options": [
+            {"bank": "Bank of Cyprus", "rate": "3.5%", "term": "25 years", "down_payment": "20%"},
+            {"bank": "Hellenic Bank", "rate": "3.6%", "term": "30 years", "down_payment": "15%"}
+        ],
+        "highlights": ["Beach Access", "Resort Amenities", "Heated Pool", "Sea Views"]
+    },
+    {
+        "id": "vasiliki-residence",
+        "name": "Vasiliki Residence",
+        "slug": "vasiliki-residence",
+        "location": "Columbia Area, Limassol",
+        "address": "15 Royal Street, Columbia",
+        "description": "Named after the Greek word for 'Royal', Vasiliki Residence lives up to its name with regal finishes and aristocratic charm. This elegant development offers refined living in one of Limassol's most sought-after neighborhoods.",
+        "price_from": 265000,
+        "price_to": 445000,
+        "currency": "EUR",
+        "status": "sold_out",
+        "is_new_launch": False,
+        "launch_date": None,
+        "completion_date": "2025-03-01",
+        "features": {
+            "bedrooms": 3,
+            "bathrooms": 2,
+            "area": 130,
+            "parking": 2,
+            "floor": "1-6",
+            "energy_rating": "A"
+        },
+        "amenities": [
+            {"name": "Iasis Hospital", "distance": "2.5 km", "icon": "hospital", "category": "essential"},
+            {"name": "St. Mary's School", "distance": "1.0 km", "icon": "school", "category": "essential"},
+            {"name": "Athienitis", "distance": "0.5 km", "icon": "shopping-cart", "category": "essential"},
+            {"name": "City Bus", "distance": "0.2 km", "icon": "bus", "category": "essential"},
+            {"name": "Aphrodite Beach", "distance": "2.0 km", "icon": "waves", "category": "lifestyle"},
+            {"name": "Columbia Plaza", "distance": "0.3 km", "icon": "shopping-bag", "category": "lifestyle"},
+            {"name": "Columbia Park", "distance": "0.4 km", "icon": "trees", "category": "lifestyle"},
+            {"name": "Holmes Place", "distance": "0.8 km", "icon": "dumbbell", "category": "lifestyle"},
+            {"name": "Elia Restaurant", "distance": "0.4 km", "icon": "utensils", "category": "lifestyle"}
+        ],
+        "images": [
+            "https://images.unsplash.com/photo-1600047509358-9dc75507daeb?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600566752355-35792bedcfea?crop=entropy&cs=srgb&fm=jpg&q=85",
+            "https://images.unsplash.com/photo-1600585154363-67eb9e2e2099?crop=entropy&cs=srgb&fm=jpg&q=85"
+        ],
+        "floor_plan_url": "https://example.com/vasiliki-floorplan.pdf",
+        "virtual_tour_url": None,
+        "video_url": None,
+        "financing_options": [],
+        "highlights": ["Elegant Design", "Prime Location", "Luxury Finishes", "Concierge Service"]
+    }
+]
+
+# Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Evangelou & Frantzis API", "version": "1.0.0"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
+@api_router.get("/properties", response_model=List[dict])
+async def get_properties(
+    is_new_launch: Optional[bool] = None,
+    status: Optional[str] = None,
+    min_price: Optional[int] = None,
+    max_price: Optional[int] = None,
+    bedrooms: Optional[int] = None
+):
+    """Get all properties with optional filters"""
+    properties = SAMPLE_PROPERTIES.copy()
     
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
+    if is_new_launch is not None:
+        properties = [p for p in properties if p["is_new_launch"] == is_new_launch]
     
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+    if status:
+        properties = [p for p in properties if p["status"] == status]
+    
+    if min_price:
+        properties = [p for p in properties if p["price_from"] >= min_price]
+    
+    if max_price:
+        properties = [p for p in properties if p["price_to"] <= max_price]
+    
+    if bedrooms:
+        properties = [p for p in properties if p["features"]["bedrooms"] >= bedrooms]
+    
+    return properties
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
+@api_router.get("/properties/new-launches", response_model=List[dict])
+async def get_new_launches():
+    """Get only new launch properties"""
+    return [p for p in SAMPLE_PROPERTIES if p["is_new_launch"]]
+
+@api_router.get("/properties/featured", response_model=List[dict])
+async def get_featured_properties():
+    """Get featured properties (first 4 available)"""
+    available = [p for p in SAMPLE_PROPERTIES if p["status"] == "available"]
+    return available[:4]
+
+@api_router.get("/properties/{slug}", response_model=dict)
+async def get_property(slug: str):
+    """Get a single property by slug"""
+    for prop in SAMPLE_PROPERTIES:
+        if prop["slug"] == slug:
+            return prop
+    raise HTTPException(status_code=404, detail="Property not found")
+
+@api_router.post("/contact", response_model=dict)
+async def submit_contact(form: ContactFormCreate):
+    """Submit a contact form"""
+    contact = ContactForm(**form.model_dump())
+    doc = contact.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
     
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
+    await db.contacts.insert_one(doc)
     
-    return status_checks
+    return {
+        "success": True,
+        "message": "Thank you for your inquiry. Our team will contact you shortly.",
+        "id": contact.id
+    }
+
+@api_router.get("/company-info")
+async def get_company_info():
+    """Get company information"""
+    return {
+        "name": "Evangelou & Frantzis Developers & Constructions Co Ltd",
+        "established": 1971,
+        "years_of_experience": 54,
+        "tagline": "Building Dreams for Over 50 Years",
+        "description": "A family-run business that has grown into a major player in Cyprus real estate, known for constructing affordable, superior-quality homes and commercial properties.",
+        "values": [
+            {"title": "Quality", "description": "Using only premium materials and skilled craftsmanship"},
+            {"title": "Integrity", "description": "Honest dealings and transparent communication"},
+            {"title": "Innovation", "description": "Modern designs with sustainable practices"},
+            {"title": "Customer Focus", "description": "From design to completion, your satisfaction is our priority"}
+        ],
+        "contact": {
+            "address": "6 Laiou str., Anna Court, Block A, Flat/Office 502, 7th Floor, 3015 Omonoia/Limassol, Cyprus",
+            "phone": ["+357 25 339143", "+357 25 388832"],
+            "mobile": "+357 99 692044",
+            "fax": "+357 25 735068",
+            "email": "info@evangeloufrantzis.com"
+        },
+        "stats": {
+            "projects_completed": 150,
+            "units_delivered": 2500,
+            "happy_families": 2000,
+            "years_experience": 54
+        }
+    }
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -77,7 +615,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
